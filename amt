@@ -104,11 +104,11 @@ function error {
 if [ -f $AMT_CNF_FILE ]
 then
     source $AMT_CNF_FILE
-elif   [ $# -ne 0 ]              \
-    && [ "$1" != "init" ]        \
-    && [ "$1" != "clean" ]       \
-    && [ "$1" != "help" ]        \
-    && [ "$1" != "remove-lock" ] 
+elif   [ $# -ne 0 ]                 \
+    && [ "$1" != "clean" ]          \
+    && [ "$1" != "help" ]           \
+    && [ "$1" != "remove-lock" ]    \
+    && [ "$1" != "new-sb-project" ] 
 then    
     error "amt - configuration file $AMT_CNF_FILE not found"
     exit 1
@@ -142,5 +142,4 @@ fi
 AMT_EXIT_CODE=$?
 unlock
 exit $AMT_EXIT_CODE
-
 
