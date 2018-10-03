@@ -20,3 +20,16 @@ else
     echo $$ > $PWD/.amt/lock # write pid of current bash process
 fi
 
+
+# start export variables area
+set -a
+
+# check debug is enabled
+AMT_STDOUT=/dev/null
+# TODO look instead for --amt-dbug parameter
+if [ ! -z "$AMT_DEBUG_MODE" ] && [ $AMT_DEBUG_MODE == "true" ]
+then 
+    AMT_STDOUT=/dev/stdout
+fi
+
+
