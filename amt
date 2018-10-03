@@ -1,0 +1,22 @@
+#!/bin/bash
+# amt - application management tool
+
+AMD_COMMAND="amt"
+if [ -f $PWD/.amt/lock ]
+then
+    # TODO check is '! -z "$1"' realy needed
+    # TODO check amt pid as well maybe lock is abandoned
+    if [ ! -z "$1" ] && [ $1 == "remove-lock" ]
+    then
+        rm $PWD/.amt/lock
+        exit 0
+    fi
+    # TODO wirite command and pid name instead
+    echo " * exit an other one amt script is executed here: $PWD"
+    echo " * call 'amt remove-lock' to remove abandoned lock"
+    exit 1
+else
+    mkdir -p $PWD/.amt
+    echo $$ > $PWD/.amt/lock # write pid of current bash process
+fi
+
