@@ -2,15 +2,13 @@
 # amt - application management tool
 
 AMD_COMMAND="amt"
-if [ -f $PWD/.amt/lock ]
+if [ ! -z "$1" ] && [ $1 == "remove-lock" ]
 then
-    # TODO check is '! -z "$1"' realy needed####
+    rm -f $PWD/.amt/lock
+    exit 0
+elif [ -f $PWD/.amt/lock ]
+then
     # TODO check amt pid as well maybe lock is abandoned
-    if [ ! -z "$1" ] && [ $1 == "remove-lock" ]
-    then
-        rm $PWD/.amt/lock
-        exit 0
-    fi
     # TODO wirite command and pid name instead
     echo " * exit an other one amt script is executed here: $PWD"
     echo " * call 'amt remove-lock' to remove abandoned lock"
@@ -40,6 +38,8 @@ AMT_PID_FILE=$PWD/amt.pid
 AMT_LOG_FILE=$PWD/amt.log
 AMT_TMP_FOLDER=$PWD/.amt/tmp
 AMT_WORKING_DIRECTORY=$PWD
+AMT_BUILIN_COMMANDS_FOLDER="$AMT_SCRIPT_ROOT/command"
+AMT_CUSTOM_COMMANDS_FOLDER="$PWD/amt/command"
 mkdir -p $AMT_TMP_FOLDER
 function unlock {
     rm -f $AMT_WORKING_DIRECTORY/.amt/lock
@@ -73,8 +73,8 @@ sub load_commands_from_directory {
 }
 
 # load built in command first then override it with customized if any present
-load_commands_from_directory "$AMT_SCRIPT_ROOT/command";
-load_commands_from_directory "$PWD/amt/command";
+load_commands_from_directory "$AMT_BUILIN_COMMANDS_FOLDER";
+load_commands_from_directory "$AMT_CUSTOM_COMMANDS_FOLDER";
 
 # format info message
 my @commands = keys %amt_commands;
@@ -98,7 +98,49 @@ function error {
     msg "$1 (exit 1)"
     unlock
 }
-info
-exit 0
+
+# load configuration exit if missing
+# TODO check if selected command require $AMT_CNF_FILE or not
+if [ -f $AMT_CNF_FILE ]
+then
+    source $AMT_CNF_FILE
+elif   [ $# -ne 0 ]              \
+    && [ "$1" != "init" ]        \
+    && [ "$1" != "clean" ]       \
+    && [ "$1" != "help" ]        \
+    && [ "$1" != "remove-lock" ] 
+then    
+    error "amt - configuration file $AMT_CNF_FILE not found"
+    exit 1
+fi
+
+# end export variables area
+set +a
+
+
+# show help message
+if [ $# -eq 0 ] || [ "$1" == "help" ]
+then
+    info
+    exit 0
+fi
+
+# call command
+export $AMD_COMMAND=$1
+if [ -f $AMT_CUSTOM_COMMANDS_FOLDER/$1 ]
+then
+    export AMT_COMMAND_PATH="$AMT_CUSTOM_COMMANDS_FOLDER/$1"
+elif [ -f $AMT_BUILIN_COMMANDS_FOLDER/$1 ]
+then
+    export AMT_COMMAND_PATH="$AMT_BUILIN_COMMANDS_FOLDER/$1"
+else
+    error "unknow command $1"
+    exit 1
+fi
+
+"$AMT_COMMAND_PATH" "$@"
+AMT_EXIT_CODE=$?
+unlock
+exit $AMT_EXIT_CODE
 
 
