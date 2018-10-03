@@ -4,7 +4,7 @@
 AMD_COMMAND="amt"
 if [ -f $PWD/.amt/lock ]
 then
-    # TODO check is '! -z "$1"' realy needed
+    # TODO check is '! -z "$1"' realy needed####
     # TODO check amt pid as well maybe lock is abandoned
     if [ ! -z "$1" ] && [ $1 == "remove-lock" ]
     then
@@ -31,5 +31,74 @@ if [ ! -z "$AMT_DEBUG_MODE" ] && [ $AMT_DEBUG_MODE == "true" ]
 then 
     AMT_STDOUT=/dev/stdout
 fi
+
+# define other einvironment variables
+AMT_SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AMT_CMD_ID="$(date '+%y%m%d%H%M%S')"
+AMT_CNF_FILE=$PWD/amt.cnf
+AMT_PID_FILE=$PWD/amt.pid
+AMT_LOG_FILE=$PWD/amt.log
+AMT_TMP_FOLDER=$PWD/.amt/tmp
+AMT_WORKING_DIRECTORY=$PWD
+mkdir -p $AMT_TMP_FOLDER
+function unlock {
+    rm -f $AMT_WORKING_DIRECTORY/.amt/lock
+}
+function msg {
+    echo " * $1"
+    echo "INFO $(date +%y-%m-%d\ %H:%M:%S) [amt][$AMD_COMMAND][$AMT_CMD_ID] $1" >> $AMT_LOG_FILE
+}
+function info {
+# TODO move this script into separate file
+perl <<info_message
+use strict;
+use warnings;
+
+# amt commands container
+my %amt_commands = (
+    'amt help'          => 'print this message',  
+    'amt remove-lock'   => 'remove amt lock file',
+);
+
+# extract commands description from commands file
+sub load_commands_from_directory {
+    my \$directory = shift;
+    if ( -d \$directory ) {
+        foreach my \$current ( qx/egrep -Ihr '\\\\s+amt.*\\\\s+-\\\\s+\\\\w' \$directory/ ) {
+            \$current =~ s/^\\s*#?\\s+|\\s+$//g;
+            my (\$command, \$description) = split /\\s+-\\s+/, \$current;
+            \$amt_commands{\$command} = \$description;
+        }
+    }
+}
+
+# load built in command first then override it with customized if any present
+load_commands_from_directory "$AMT_SCRIPT_ROOT/command";
+load_commands_from_directory "$PWD/amt/command";
+
+# format info message
+my @commands = keys %amt_commands;
+my \$max = 0;
+foreach my \$command (@commands) {
+    my \$current = length \$command;
+    \$max = \$current > \$max ? \$current : \$max;
+}
+
+# print commands
+print "\n";
+foreach my \$command (sort @commands) {
+    my \$distance = ' ' x ((\$max - length \$command) + 1);
+    print "  \$command\$distance\ \$amt_commands{\$command}\n";
+}
+print "\n";
+info_message
+    unlock
+}
+function error {
+    msg "$1 (exit 1)"
+    unlock
+}
+info
+exit 0
 
 
