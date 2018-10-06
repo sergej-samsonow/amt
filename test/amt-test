@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# go into own environment 
+AMT_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AMT_TESTSPACE="$AMT_TEST_ROOT/testspace"
+
+# check or create test environment
+function clean_or_create_testspace {
+    CURRENT_WD=$PWD
+    mkdir -p $AMT_TESTSPACE
+    if [ ! -d $AMT_TESTSPACE ]
+    then
+        echo "can't create $AMT_TESTSPACE"
+        exit 1;
+    fi
+    cd $AMT_TESTSPACE
+    rm -rf *
+    if [ ! -z $(ls) ]
+    then
+        echo "can't clean up $AMT_TESTSPACE"
+        exit 1;
+    fi
+    cd $CURRENT_WD
+}
+clean_or_create_testspace
+cd $AMT_TESTSPACE
+for AMT_TEST_SUITE in $(ls "$AMT_TEST_ROOT/tests" | sort)
+do
+    for AMT_TEST_FILE in $(ls "$AMT_TEST_ROOT/tests/$AMT_TEST_SUITE" | egrep "^[0-9]" | sort) 
+    do
+        AMT_CURRENT_TEST="$AMT_TEST_ROOT/tests/$AMT_TEST_SUITE/$AMT_TEST_FILE"
+        if [ ! -x $AMT_CURRENT_TEST ]
+        then
+            chmod u+x $AMT_CURRENT_TEST
+        fi
+        AMT_FAIL_MESSAGE=$( $AMT_CURRENT_TEST )
+        if [ $? == 0 ] 
+        then
+            echo "OK   $AMT_TEST_SUITE/$AMT_TEST_FILE"
+        else 
+            echo "FAIL $AMT_TEST_SUITE/$AMT_TEST_FILE : $AMT_FAIL_MESSAGE"
+        fi
+        cd $AMT_TESTSPACE
+        clean_or_create_testspace
+    done
+done
