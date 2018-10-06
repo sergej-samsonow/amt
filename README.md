@@ -1,4 +1,4 @@
-# amt - pplication management tool
+# amt - application management tool
 Collection of helper functions for development and distribution of own
 infrastructure script solutions.
 
