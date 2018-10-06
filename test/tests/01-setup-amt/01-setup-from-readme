@@ -1,0 +1,32 @@
+#!/bin/bash
+# check environment is empty
+if [ ! -z "$(ls -A)" ]
+then
+    echo "can't continue test environment is not empty"
+    exit 1
+fi
+
+# execute setup command
+`mkdir amt && cd amt && wget -q https://raw.githubusercontent.com/sergej-samsonow/amt/master/amt && chmod u+x amt`
+
+# check amt command is present and executable
+if [ ! -d "amt" ]
+then
+    echo "amt directory not created"
+    exit 1
+fi
+
+if [ ! -f "amt/amt" ]
+then 
+    echo "amt command file not downloaded"
+    exit 1
+fi
+
+if [ ! -x "amt/amt" ]
+then 
+    echo "amt command file not executable"
+    exit 1
+fi 
+
+# anything ok
+exit 0
