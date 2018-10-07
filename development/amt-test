@@ -3,6 +3,7 @@
 # go into own environment 
 AMT_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AMT_TESTSPACE="$AMT_TEST_ROOT/testspace"
+export AMT_ROOT="$(cd "$(dirname "$AMT_TEST_ROOT")" && pwd)"
 
 # check or create test environment
 function clean_or_create_testspace {
@@ -33,12 +34,12 @@ do
         then
             chmod u+x $AMT_CURRENT_TEST
         fi
-        AMT_FAIL_MESSAGE=$( $AMT_CURRENT_TEST )
+        AMT_MESSAGE=$( $AMT_CURRENT_TEST )
         if [ $? == 0 ] 
         then
-            echo "OK   $AMT_TEST_SUITE/$AMT_TEST_FILE"
+            echo "OK   $AMT_TEST_SUITE/$AMT_TEST_FILE : $AMT_MESSAGE"
         else 
-            echo "FAIL $AMT_TEST_SUITE/$AMT_TEST_FILE : $AMT_FAIL_MESSAGE"
+            echo "FAIL $AMT_TEST_SUITE/$AMT_TEST_FILE : $AMT_MESSAGE"
         fi
         cd $AMT_TESTSPACE
         clean_or_create_testspace
