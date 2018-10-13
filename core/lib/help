@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+
+# amt help - show commands overview
+use strict;
+use warnings;
+use File::Basename;
+
+
+# find contexts commands
+# find core contexts commands
+my (%amt_commands, @core_commands, $max);
+sub load_commands_from_directory {
+    my $directory = shift;
+    if ( -d $directory ) {
+        foreach my $description ( qx[ egrep -Ihr '\\s+amt.*\\s+-\\s+\\w' $directory ] ) {
+            $description =~ s/^\s*#?\s+|\s+$//g;
+            my ($command, $overview) = split /\s+-\s+/, $description;
+            $command =~ s/amt\s+//g;
+            $amt_commands{$command} = $overview if 
+                    -f "$directory/$command"            # command is present
+                and -x "$directory/$command"            # and is executatble
+                and not exists $amt_commands{$command}; # and don't override core command
+        }    
+    }
+}
+
+load_commands_from_directory(dirname(__FILE__));
+@core_commands = keys %amt_commands;
+
+$max = 1;
+foreach my $command (keys %amt_commands) {
+    my $len = length $command;
+    $max = $len if $len > $max;
+}
+
+print "application management tool\n";
+print "\n";
+foreach my $command (sort @core_commands) {
+    my $spaces = ' ' x ($max - length $command);
+    print "    amt $command $spaces $amt_commands{$command}\n"; 
+}
+print "\n";
+exit 0;

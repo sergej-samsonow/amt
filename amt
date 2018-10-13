@@ -1,145 +1,80 @@
 #!/bin/bash
 # amt - application management tool
 
-AMD_COMMAND="amt"
-if [ ! -z "$1" ] && [ $1 == "remove-lock" ]
+# determine core installation root and look for minimal setup
+AMT_SYSTEM_CONTEXT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AMT_OWN_PROCESS=$$
+AMT_CORE_LIB="$AMT_SYSTEM_CONTEXT/core/lib"
+function panic_if_core_file_is_missing {
+    MISSING_FILE=$1
+    if [ ! -f "$AMT_CORE_LIB/$MISSING_FILE" ]
+    then
+        echo "CORE ERROR: broken setup: $MISSING_FILE not found in: $AMT_CORE_LIB installation is defect reinstall amt"
+        kill $AMT_OWN_PROCESS
+    fi
+}
+declare -a AMT_CORE_FILES=("message.sh" "help" "update" "check-command.pl")
+for AMT_CORE_FILE in "${AMT_CORE_FILES[@]}"
+do 
+    panic_if_core_file_is_missing $AMT_CORE_FILE
+done
+
+source $AMT_CORE_LIB/message.sh
+
+# determine amt context - from wich lib folder command should be loaded
+AMT_LOCAL_CONTEXT="$PWD/amt"
+AMT_CONTEXT=$AMT_LOCAL_CONTEXT
+if [ ! -d $AMT_LOCAL_CONTEXT ]
 then
-    rm -f $PWD/.amt/lock
-    exit 0
-elif [ -f $PWD/.amt/lock ]
+    AMT_CONTEXT=$AMT_SYSTEM_CONTEXT
+fi
+export AMT_LIB_FOLDER=$AMT_CONTEXT/lib
+export AMT_ETC_FOLDER=$AMT_CONTEXT/etc
+
+# determine if any command is called 
+if [ $# -eq 0 ]
 then
-    # TODO check amt pid as well maybe lock is abandoned
-    # TODO wirite command and pid name instead
-    echo " * exit an other one amt script is executed here: $PWD"
-    echo " * call 'amt remove-lock' to remove abandoned lock"
-    exit 1
-else
-    mkdir -p $PWD/.amt
-    echo $$ > $PWD/.amt/lock # write pid of current bash process
+    export AMT_COMMAND="help"
+else 
+    export AMT_COMMAND=$1
 fi
 
-
-# start export variables area
-set -a
-
-# check debug is enabled
-AMT_STDOUT=/dev/null
-# TODO look instead for --amt-dbug parameter
-if [ ! -z "$AMT_DEBUG_MODE" ] && [ $AMT_DEBUG_MODE == "true" ]
-then 
-    AMT_STDOUT=/dev/stdout
-fi
-
-# define other einvironment variables
-AMT_SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AMT_CMD_ID="$(date '+%y%m%d%H%M%S')"
-AMT_CNF_FILE=$PWD/amt.cnf
-AMT_PID_FILE=$PWD/amt.pid
-AMT_LOG_FILE=$PWD/amt.log
-AMT_TMP_FOLDER=$PWD/.amt/tmp
-AMT_WORKING_DIRECTORY=$PWD
-AMT_BUILIN_COMMANDS_FOLDER="$AMT_SCRIPT_ROOT/command"
-AMT_CUSTOM_COMMANDS_FOLDER="$PWD/amt/command"
-mkdir -p $AMT_TMP_FOLDER
-function unlock {
-    rm -f $AMT_WORKING_DIRECTORY/.amt/lock
-}
-function msg {
-    echo " * $1"
-    echo "INFO $(date +%y-%m-%d\ %H:%M:%S) [amt][$AMD_COMMAND][$AMT_CMD_ID] $1" >> $AMT_LOG_FILE
-}
-function info {
-# TODO move this script into separate file
-perl <<info_message
-use strict;
-use warnings;
-
-# amt commands container
-my %amt_commands = (
-    'amt help'          => 'print this message',  
-    'amt remove-lock'   => 'remove amt lock file',
-);
-
-# extract commands description from commands file
-sub load_commands_from_directory {
-    my \$directory = shift;
-    if ( -d \$directory ) {
-        foreach my \$current ( qx/egrep -Ihr '\\\\s+amt.*\\\\s+-\\\\s+\\\\w' \$directory/ ) {
-            \$current =~ s/^\\s*#?\\s+|\\s+$//g;
-            my (\$command, \$description) = split /\\s+-\\s+/, \$current;
-            \$amt_commands{\$command} = \$description;
-        }
-    }
-}
-
-# load built in command first then override it with customized if any present
-load_commands_from_directory "$AMT_BUILIN_COMMANDS_FOLDER";
-load_commands_from_directory "$AMT_CUSTOM_COMMANDS_FOLDER";
-
-# format info message
-my @commands = keys %amt_commands;
-my \$max = 0;
-foreach my \$command (@commands) {
-    my \$current = length \$command;
-    \$max = \$current > \$max ? \$current : \$max;
-}
-
-# print commands
-print "\n";
-foreach my \$command (sort @commands) {
-    my \$distance = ' ' x ((\$max - length \$command) + 1);
-    print "  \$command\$distance\ \$amt_commands{\$command}\n";
-}
-print "\n";
-info_message
-    unlock
-}
-function error {
-    msg "$1 (exit 1)"
-    unlock
-}
-
-# load configuration exit if missing
-# TODO check if selected command require $AMT_CNF_FILE or not
-if [ -f $AMT_CNF_FILE ]
+# determine command location important check for core command first!
+# core commands should not be overriden!
+if [ -f "$AMT_CORE_LIB/$AMT_COMMAND" ]
 then
-    source $AMT_CNF_FILE
-elif   [ $# -ne 0 ]                 \
-    && [ "$1" != "clean" ]          \
-    && [ "$1" != "help" ]           \
-    && [ "$1" != "remove-lock" ]    \
-    && [ "$1" != "new-sb-project" ] 
-then    
-    error "amt - configuration file $AMT_CNF_FILE not found"
+    export AMT_COMMAND_PATH="$AMT_CORE_LIB/$AMT_COMMAND"
+elif   [ -f "$AMT_LIB_FOLDER/$AMT_COMMAND" ]
+then
+    export AMT_COMMAND_PATH="$AMT_LIB_FOLDER/$AMT_COMMAND"
+else 
+    error_msg "$AMT_COMMAND not found! Lib context: $AMT_LIB_FOLDER. Core lib context: $AMT_CORE_LIB"
     exit 1
 fi
 
-# end export variables area
-set +a
-
-
-# show help message
-if [ $# -eq 0 ] || [ "$1" == "help" ]
+# determine if command file is executable
+if [ ! -x $AMT_COMMAND_PATH ]
 then
-    info
-    exit 0
+    error_msg "$AMT_COMMAND in $AMT_COMMAND_PATH is not executable!"
+    exit 1
+fi
+
+
+# check command environment and parameter
+# parameters check described in file itself
+# plus additionals checks 
+#   amt-check-exclusive-access      - command requires exclusive access no 
+#                                     concurent execution
+#   amt-check-wd-file:configuration - command requires configuration file 
+#                                     in current working directory
+AMT_CONTEXT_VALIDATION=$( perl "$AMT_CORE_LIB/check-command.pl" "$@" )
+if [ "$AMT_CONTEXT_VALIDATION" != "is valid" ]
+then
+    error_msg $AMT_CONTEXT_VALIDATION
+    exit 1
 fi
 
 # call command
-export $AMD_COMMAND=$1
-if [ -f $AMT_CUSTOM_COMMANDS_FOLDER/$1 ]
-then
-    export AMT_COMMAND_PATH="$AMT_CUSTOM_COMMANDS_FOLDER/$1"
-elif [ -f $AMT_BUILIN_COMMANDS_FOLDER/$1 ]
-then
-    export AMT_COMMAND_PATH="$AMT_BUILIN_COMMANDS_FOLDER/$1"
-else
-    error "unknow command $1"
-    exit 1
-fi
-
 "$AMT_COMMAND_PATH" "$@"
 AMT_EXIT_CODE=$?
-unlock
 exit $AMT_EXIT_CODE
-
