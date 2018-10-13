@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# go into own environment 
+AMT_ROOT="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
+cd $AMT_ROOT
+rm -f amt.tar.gz
+tar -czf amt.tar.gz amt core
