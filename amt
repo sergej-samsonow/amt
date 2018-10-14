@@ -23,8 +23,9 @@ then
     chmod u+x "$AMT_CORE_LIB/help" "$AMT_CORE_LIB/update"
 fi
 
-
+set -a
 source $AMT_CORE_LIB/message.sh
+set +a
 
 # determine amt context - from wich lib folder command should be loaded
 AMT_LOCAL_CONTEXT="$PWD/amt"
@@ -35,6 +36,7 @@ then
 fi
 export AMT_LIB_FOLDER=$AMT_CONTEXT/lib
 export AMT_ETC_FOLDER=$AMT_CONTEXT/etc
+export AMT_TMP_FOLDER=$AMT_CONTEXT/tmp
 
 # determine if any command is called 
 if [ $# -eq 0 ]
