@@ -18,6 +18,11 @@ for AMT_CORE_FILE in "${AMT_CORE_FILES[@]}"
 do 
     panic_if_core_file_is_missing $AMT_CORE_FILE
 done
+if [ ! -x "$AMT_CORE_LIB/help" ] || [ ! -x "$AMT_CORE_LIB/update" ]
+then
+    chmod u+x "$AMT_CORE_LIB/help" "$AMT_CORE_LIB/update"
+fi
+
 
 source $AMT_CORE_LIB/message.sh
 
