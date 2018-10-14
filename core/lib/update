@@ -2,4 +2,95 @@
 
 # amt update - install or update installed commands
 
+# check install file is present
+AMT_CONTEXT_FOLDER=$(dirname "$AMT_LIB_FOLDER")
+AMT_UPDATE_SOURCE_FILE="$AMT_CONTEXT_FOLDER/install"
+AMT_UPDATE_SOURCE_FILE_HASH="$AMT_CONTEXT_FOLDER/install.sha1"
+if [ ! -f "$AMT_UPDATE_SOURCE_FILE" ]
+then
+    msg "$AMT_UPDATE_SOURCE_FILE missing nothing to do"
+    exit 0
+fi
+
+# check new environment is different to installed environment
+AMT_UPDATE_SOURCE_FILE_CURRENT_HASH=$(sha1sum $AMT_UPDATE_SOURCE_FILE)
+if [ -f "$AMT_UPDATE_SOURCE_FILE_HASH" ]
+then
+    AMT_UPDATE_SOURCE_FILE_STORED_HASH=$(cat "$AMT_UPDATE_SOURCE_FILE_HASH")
+    if [ "$AMT_UPDATE_SOURCE_FILE_CURRENT_HASH" == "$AMT_UPDATE_SOURCE_FILE_STORED_HASH" ]
+    then
+        msg "no changes on $AMT_UPDATE_SOURCE_FILE since $(stat -c %y "$AMT_UPDATE_SOURCE_FILE_HASH" | cut -c1-19)"
+        msg "remove $AMT_UPDATE_SOURCE_FILE_HASH if you want reinstall packages" 
+        exit 0
+    fi
+fi
+
+# make shure /lib and /etc folder are present
+mkdir -p $AMT_LIB_FOLDER
+mkdir -p $AMT_ETC_FOLDER
+AMT_UPDATE_TMP_FOLDER="$AMT_TMP_FOLDER"
+mkdir -p "$AMT_UPDATE_TMP_FOLDER"
+
+if [ ! -d "$AMT_LIB_FOLDER" ]
+then
+    error_msg "check premissions can't create $AMT_LIB_FOLDER" 
+    exit 1
+fi
+if [ ! -d "$AMT_ETC_FOLDER" ]
+then
+    error_msg "check premissions can't create $AMT_ETC_FOLDER" 
+    exit 1
+fi
+if [ ! -d "$AMT_UPDATE_TMP_FOLDER" ]
+then
+    error_msg "check premissions can't create $AMT_UPDATE_TMP_FOLDER" 
+    exit 1
+fi
+
+# clean up
+msg "remove anything inside $AMT_LIB_FOLDER"
+rm -f "$AMT_LIB_FOLDER/*"
+msg "remove anything insede $AMT_UPDATE_TMP_FOLDER"
+rm -f "$AMT_UPDATE_TMP_FOLDER/*"
+
+
+# declare update functions
+function download_file {
+    FILE=$1
+    echo "$FILE" 
+}
+
+function copy_file {
+    SOURCE_FILE=$1
+    DESTINATION_FOLDER=$2
+    if [ ! -z "$(echo -e "$SOURCE_FILE" | egrep '^http')" ]
+    then
+        msg "http(s) location"
+        SOURCE_FILE="$(download_file $SOURCE_FILE)"
+    fi
+    if [ -z $SOURCE_FILE ]
+    then
+        error_msg "can't find source $1" 
+    fi
+}
+
+copy_file "http://www.bom.bom" "x"
+copy_file "/home/sergej/bla" "x"
+exit 0
+
+function install_lib {
+    msg "install lib $1" 
+}
+
+function install_cmd {
+    msg "install cmd $1" 
+}
+
+function install_etc {
+    msg "install etc $1" 
+}
+
+source $AMT_UPDATE_SOURCE_FILE
+
+
 
